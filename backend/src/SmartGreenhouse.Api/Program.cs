@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SmartGreenhouse.Application.Services;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 using SmartGreenhouse.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,7 +10,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var cs = builder.Configuration.GetConnectionString("Default")
-         ?? "Host=localhost;Port=5432;Database=greenhouse;Username=greenhouse;Password=greenhouse";
+         ?? "Host=localhost;Port=5432;Database=greenhouse;Username=postgres;Password=1234";
 builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(cs));
 
 builder.Services.AddScoped<ReadingService>();
