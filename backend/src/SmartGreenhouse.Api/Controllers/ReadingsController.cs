@@ -2,6 +2,11 @@
 using SmartGreenhouse.Application.Services;
 using SmartGreenhouse.Domain.Entities;
 
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SmartGreenhouse.Domain.Entities;
+using SmartGreenhouse.Infrastructure.Data;
+
 namespace SmartGreenhouse.Api.Controllers;
 
 [ApiController]
