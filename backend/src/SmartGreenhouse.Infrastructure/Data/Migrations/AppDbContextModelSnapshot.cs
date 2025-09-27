@@ -35,9 +35,17 @@ namespace SmartGreenhouse.Infrastructure.Data.Migrations
 
                     b.Property<string>("DeviceName")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("DeviceType")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceName");
+
+                    b.HasIndex("DeviceType");
 
                     b.ToTable("Devices");
                 });
@@ -53,9 +61,8 @@ namespace SmartGreenhouse.Infrastructure.Data.Migrations
                     b.Property<int>("DeviceId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("SensorType")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("SensorType")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
