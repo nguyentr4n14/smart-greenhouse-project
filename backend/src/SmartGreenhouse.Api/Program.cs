@@ -17,7 +17,7 @@ builder.Services.AddSwaggerGen();
 
 // Database configuration
 var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? "Host=localhost;Port=5432;Database=greenhouse;Username=postgres;Password=1234";
+    ?? "Host=localhost;Port=5432;Database=greenhouse;Username=greenhouse_user;Password=greenhouse123";
 builder.Services.AddDbContext<AppDbContext>(options => 
     options.UseNpgsql(connectionString));
 
