@@ -45,6 +45,7 @@ builder.Services.AddScoped<ControlService>();
 
 // Application services
 builder.Services.AddScoped<CaptureReadingService>();
+builder.Services.AddScoped<ReadingService>();
 
 // CORS
 builder.Services.AddCors(options =>

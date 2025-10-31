@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace SmartGreenhouse.Application.Control;
 
 public class MoistureTopUpStrategy : IControlStrategy
@@ -18,7 +20,7 @@ public class MoistureTopUpStrategy : IControlStrategy
         if (context.Parameters != null &&
             context.Parameters.TryGetValue("threshold", out var thresholdParam))
         {
-            threshold = Convert.ToDouble(thresholdParam);
+            threshold = ConvertToDouble(thresholdParam);
         }
 
         if (moisture < threshold)
@@ -39,5 +41,14 @@ public class MoistureTopUpStrategy : IControlStrategy
         }
 
         return Task.FromResult<IEnumerable<ActuatorCommand>>(commands);
+    }
+
+    private double ConvertToDouble(object value)
+    {
+        if (value is JsonElement jsonElement)
+        {
+            return jsonElement.GetDouble();
+        }
+        return Convert.ToDouble(value);
     }
 }
