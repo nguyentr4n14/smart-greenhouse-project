@@ -21,12 +21,18 @@ public class ControlService
             .Where(r => r.DeviceId == deviceId)
             .GroupBy(r => r.SensorType)
             .Select(g => g.OrderByDescending(r => r.Timestamp).First())
-            .ToDictionaryAsync(r => r.SensorType, r => r.Value);
+            .ToListAsync();
 
         if (latestReadings.Count == 0)
         {
             return Enumerable.Empty<ActuatorCommand>();
         }
+
+        // Convert Dictionary<SensorTypeEnum, double> to Dictionary<string, double>
+        var readingsDictionary = latestReadings.ToDictionary(
+            r => r.SensorType.ToString(),
+            r => r.Value
+        );
 
         // Select strategy and parameters
         var strategy = await _strategySelector.SelectStrategyAsync(deviceId);
@@ -36,7 +42,7 @@ public class ControlService
         var context = new ControlContext
         {
             DeviceId = deviceId,
-            LatestReadings = latestReadings,
+            LatestReadings = readingsDictionary,
             Parameters = parameters
         };
 

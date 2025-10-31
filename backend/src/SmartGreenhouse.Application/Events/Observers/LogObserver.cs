@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using SmartGreenhouse.Application.Abstractions;
 
 namespace SmartGreenhouse.Application.Events.Observers;

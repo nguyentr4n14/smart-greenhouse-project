@@ -7,33 +7,37 @@ namespace SmartGreenhouse.Application.Services;
 
 public class ReadingService
 {
-    private readonly AppDbContext _db;
-    public ReadingService(AppDbContext db) => _db = db;
+    private readonly AppDbContext _context;
 
-    public async Task<IReadOnlyList<SensorReading>> QueryAsync(
-        int? deviceId = null, 
-        SensorTypeEnum? sensorType = null, 
-        int take = 200)
+    public ReadingService(AppDbContext context)
     {
-        var q = _db.Readings
-            .Include(r => r.Device) // optional, if you want Device info in results
-            .AsNoTracking()
-            .OrderByDescending(r => r.Timestamp)
-            .AsQueryable();
-
-        if (deviceId.HasValue) 
-            q = q.Where(r => r.DeviceId == deviceId.Value);
-        
-        if (sensorType.HasValue) 
-            q = q.Where(r => r.SensorType == sensorType.Value);
-
-        return await q.Take(take).ToListAsync();
+        _context = context;
     }
 
-    public async Task<SensorReading> AddAsync(SensorReading reading)
+    public async Task<List<SensorReading>> GetReadingsAsync(
+        int? deviceId = null,
+        SensorTypeEnum? sensorType = null,
+        int take = 100)
     {
-        _db.Readings.Add(reading);
-        await _db.SaveChangesAsync();
-        return reading;
+        var query = _context.SensorReadings.AsQueryable();
+
+        if (deviceId.HasValue)
+            query = query.Where(r => r.DeviceId == deviceId.Value);
+
+        if (sensorType.HasValue)
+            query = query.Where(r => r.SensorType == sensorType.Value);
+
+        return await query
+            .OrderByDescending(r => r.Timestamp)
+            .Take(take)
+            .ToListAsync();
+    }
+
+    public async Task<SensorReading?> GetLatestReadingAsync(int deviceId, SensorTypeEnum sensorType)
+    {
+        return await _context.SensorReadings
+            .Where(r => r.DeviceId == deviceId && r.SensorType == sensorType)
+            .OrderByDescending(r => r.Timestamp)
+            .FirstOrDefaultAsync();
     }
 }
