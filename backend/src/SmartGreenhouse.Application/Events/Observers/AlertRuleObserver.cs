@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SmartGreenhouse.Application.Abstractions;
 using SmartGreenhouse.Domain.Entities;
 using SmartGreenhouse.Infrastructure.Data;

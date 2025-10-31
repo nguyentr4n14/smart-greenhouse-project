@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SmartGreenhouse.Infrastructure.Data;
 
 namespace SmartGreenhouse.Application.Control;
