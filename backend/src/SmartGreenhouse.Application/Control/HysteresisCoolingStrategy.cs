@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace SmartGreenhouse.Application.Control;
 
 public class HysteresisCoolingStrategy : IControlStrategy
@@ -20,11 +22,11 @@ public class HysteresisCoolingStrategy : IControlStrategy
         {
             if (context.Parameters.TryGetValue("onAbove", out var onAboveParam))
             {
-                onAbove = Convert.ToDouble(onAboveParam);
+                onAbove = ConvertToDouble(onAboveParam);
             }
             if (context.Parameters.TryGetValue("offBelow", out var offBelowParam))
             {
-                offBelow = Convert.ToDouble(offBelowParam);
+                offBelow = ConvertToDouble(offBelowParam);
             }
         }
 
@@ -47,5 +49,14 @@ public class HysteresisCoolingStrategy : IControlStrategy
         // No action in between (hysteresis zone)
 
         return Task.FromResult<IEnumerable<ActuatorCommand>>(commands);
+    }
+
+    private double ConvertToDouble(object value)
+    {
+        if (value is JsonElement jsonElement)
+        {
+            return jsonElement.GetDouble();
+        }
+        return Convert.ToDouble(value);
     }
 }
