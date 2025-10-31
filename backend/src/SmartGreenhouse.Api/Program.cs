@@ -1,44 +1,74 @@
 using Microsoft.EntityFrameworkCore;
+using SmartGreenhouse.Application.Abstractions;
+using SmartGreenhouse.Application.Control;
 using SmartGreenhouse.Application.DeviceIntegration;
+using SmartGreenhouse.Application.Events;
+using SmartGreenhouse.Application.Events.Observers;
 using SmartGreenhouse.Application.Services;
 using SmartGreenhouse.Infrastructure.Data;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add JSON configuration for enum string serialization
-builder.Services.AddControllers().AddJsonOptions(options =>
-{
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
-
+// Add services to the container.
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Database configuration
-var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? "Host=localhost;Port=5432;Database=greenhouse;Username=greenhouse_user;Password=greenhouse123";
-builder.Services.AddDbContext<AppDbContext>(options => 
-    options.UseNpgsql(connectionString));
+// Database
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Register device integration factories
-builder.Services.AddSingleton<SimulatedDeviceFactory>();
+// Device integration
+builder.Services.AddSingleton<IDeviceFactory, SimulatedDeviceFactory>();
 
-// Register device factory resolver
-builder.Services.AddSingleton<IDeviceFactoryResolver, DeviceFactoryResolver>();
+// Observer pattern - scoped to match DbContext lifetime
+builder.Services.AddScoped<IReadingPublisher>(serviceProvider =>
+{
+    var publisher = new ReadingPublisher();
+    var logObserver = serviceProvider.GetRequiredService<LogObserver>();
+    var alertObserver = serviceProvider.GetRequiredService<AlertRuleObserver>();
 
-// Register application services
+    publisher.Subscribe(logObserver);
+    publisher.Subscribe(alertObserver);
+
+    return publisher;
+});
+
+builder.Services.AddScoped<LogObserver>();
+builder.Services.AddScoped<AlertRuleObserver>();
+
+// Strategy pattern
+builder.Services.AddSingleton<HysteresisCoolingStrategy>();
+builder.Services.AddSingleton<MoistureTopUpStrategy>();
+builder.Services.AddScoped<ControlStrategySelector>();
+builder.Services.AddScoped<ControlService>();
+
+// Application services
 builder.Services.AddScoped<CaptureReadingService>();
 builder.Services.AddScoped<ReadingService>();
 
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseCors("AllowAll");
+app.UseAuthorization();
 app.MapControllers();
-await app.RunAsync();
+
+app.Run();

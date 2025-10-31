@@ -1,71 +1,85 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using SmartGreenhouse.Application.Abstractions;
 using SmartGreenhouse.Application.DeviceIntegration;
-using SmartGreenhouse.Application.Factories;
 using SmartGreenhouse.Domain.Entities;
 using SmartGreenhouse.Domain.Enums;
 using SmartGreenhouse.Infrastructure.Data;
+using SmartGreenhouse.Shared;
 
 namespace SmartGreenhouse.Application.Services;
 
-/// <summary>
-/// Service for capturing sensor readings from devices.
-/// This orchestrates the workflow of reading from devices, normalizing values, and storing results.
-/// </summary>
 public class CaptureReadingService
 {
-    private readonly AppDbContext _db;
-    private readonly IDeviceFactoryResolver _factoryResolver;
+    private readonly AppDbContext _context;
+    private readonly IDeviceFactory _deviceFactory;
+    private readonly IReadingPublisher _publisher;
+    private readonly ILogger<CaptureReadingService> _logger;
 
-    public CaptureReadingService(AppDbContext db, IDeviceFactoryResolver factoryResolver)
+    public CaptureReadingService(
+        AppDbContext context,
+        IDeviceFactory deviceFactory,
+        IReadingPublisher publisher,
+        ILogger<CaptureReadingService> logger)
     {
-        _db = db;
-        _factoryResolver = factoryResolver;
+        _context = context;
+        _deviceFactory = deviceFactory;
+        _publisher = publisher;
+        _logger = logger;
     }
 
-    /// <summary>
-    /// Captures a sensor reading from the specified device.
-    /// </summary>
-    /// <param name="deviceId">The device to read from</param>
-    /// <param name="sensorType">The type of sensor to read</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>The captured and stored sensor reading</returns>
-    /// <exception cref="InvalidOperationException">Thrown when device is not found</exception>
-    public async Task<SensorReading> CaptureAsync(
-        int deviceId, 
-        SensorTypeEnum sensorType, 
-        CancellationToken ct = default)
+    public async Task<SensorReading> CaptureAsync(int deviceId, SensorTypeEnum sensorType)
     {
-        // 1. Load device or throw exception
-        var device = await _db.Devices.FirstOrDefaultAsync(d => d.Id == deviceId, ct);
+        var device = await _context.Devices.FindAsync(deviceId);
         if (device == null)
         {
-            throw new InvalidOperationException($"Device with ID {deviceId} not found.");
+            throw new InvalidOperationException($"Device with ID {deviceId} not found");
         }
 
-        // 2. Resolve factory based on device type
-        var factory = _factoryResolver.Resolve(device);
-        var sensorReader = factory.CreateSensorReader();
+        // Convert DeviceTypeEnum to string for the factory
+        var sensorReader = _deviceFactory.CreateDevice(device.DeviceType.ToString());
 
-        // 3. Read raw value from device
-        var rawValue = await sensorReader.ReadAsync(deviceId, sensorType, ct);
+        // Convert SensorTypeEnum to SensorType for the reader
+        var sharedSensorType = ConvertToSharedSensorType(sensorType);
+        var value = await sensorReader.ReadSensorAsync(sharedSensorType);
 
-        // 4. Normalize value using appropriate normalizer
-        var normalizer = SensorNormalizerFactory.Create(sensorType);
-        var normalizedValue = normalizer.Normalize(rawValue);
-
-        // 5. Create and save sensor reading
         var reading = new SensorReading
         {
             DeviceId = deviceId,
-            SensorType = sensorType,
-            Value = normalizedValue,
-            Unit = normalizer.CanonicalUnit,
+            SensorType = sensorType, // Keep as SensorTypeEnum
+            Value = value,
             Timestamp = DateTime.UtcNow
         };
 
-        _db.Readings.Add(reading);
-        await _db.SaveChangesAsync(ct);
+        _context.SensorReadings.Add(reading);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Captured reading: Device={DeviceId}, Sensor={SensorType}, Value={Value}",
+            deviceId,
+            sensorType,
+            value);
+
+        // Publish event to observers - convert enum to string
+        await _publisher.PublishAsync(new ReadingEvent(
+            reading.DeviceId,
+            reading.SensorType.ToString(),
+            reading.Value,
+            reading.Timestamp
+        ));
 
         return reading;
+    }
+
+    private SensorType ConvertToSharedSensorType(SensorTypeEnum sensorTypeEnum)
+    {
+        return sensorTypeEnum switch
+        {
+            SensorTypeEnum.Temperature => SensorType.Temperature,
+            SensorTypeEnum.Humidity => SensorType.Humidity,
+            SensorTypeEnum.Light => SensorType.Light,
+            SensorTypeEnum.SoilMoisture => SensorType.SoilMoisture,
+            _ => SensorType.Temperature
+        };
     }
 }
