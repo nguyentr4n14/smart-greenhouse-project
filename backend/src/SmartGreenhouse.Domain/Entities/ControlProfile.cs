@@ -11,4 +11,5 @@ public class ControlProfile
 
     // Navigation property
     public Device? Device { get; set; }
+    public bool IsActive { get; set; }
 }

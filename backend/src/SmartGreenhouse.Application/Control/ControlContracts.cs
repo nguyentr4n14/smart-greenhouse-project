@@ -12,8 +12,28 @@ public class ControlContext
     public Dictionary<string, object>? Parameters { get; init; }
 }
 
+
+
 public class ActuatorCommand
 {
     public string ActuatorName { get; init; } = string.Empty;
-    public string Action { get; init; } = string.Empty; // "On", "Off", "Set:50%"
+    public string Action { get; init; } = string.Empty;
+
+    public ActuatorCommand() { }
+
+
+    public ActuatorCommand(string actuatorName , string action)
+    {
+        ActuatorName = actuatorName;
+        Action = action;
+    }
 }
+
+public class LatestReadingsDto
+{
+    public decimal Temperature { get; set; }
+    public decimal Humidity { get; set; }
+    public decimal SoilMoisture { get; set; }
+}
+
+
