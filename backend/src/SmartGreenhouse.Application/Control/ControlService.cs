@@ -14,6 +14,8 @@ public class ControlService
         _strategySelector = strategySelector;
     }
 
+  
+
     public async Task<IEnumerable<ActuatorCommand>> EvaluateControlAsync(int deviceId)
     {
         // Load latest readings for the device

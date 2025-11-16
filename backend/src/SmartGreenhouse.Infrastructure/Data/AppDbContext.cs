@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<AlertRule> AlertRules => Set<AlertRule>();
     public DbSet<AlertNotification> AlertNotifications => Set<AlertNotification>();
     public DbSet<ControlProfile> ControlProfiles => Set<ControlProfile>();
+    public DbSet<DeviceStateSnapshot> DeviceStates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -87,6 +88,13 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.DeviceId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DeviceStateSnapshot>(entity =>
+        {
+
+            entity.HasIndex(e => new { e.DeviceId, e.EnteredAt })
+                  .IsDescending(false, true); 
         });
     }
 }
