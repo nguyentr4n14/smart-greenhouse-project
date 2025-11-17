@@ -14,7 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<AlertRule> AlertRules => Set<AlertRule>();
     public DbSet<AlertNotification> AlertNotifications => Set<AlertNotification>();
     public DbSet<ControlProfile> ControlProfiles => Set<ControlProfile>();
-    public DbSet<DeviceStateSnapshot> DeviceStates { get; set; }
+    public DbSet<DeviceStateSnapshot> DeviceStateSnapshots { get; set; }  // ✅ CHANGED FROM DeviceStates
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -90,11 +90,21 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // DeviceStateSnapshot configuration
         modelBuilder.Entity<DeviceStateSnapshot>(entity =>
         {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StateName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EnteredAt).IsRequired();
+            entity.Property(e => e.Notes).HasMaxLength(500);
+
+            entity.HasOne<Device>()
+                .WithMany()
+                .HasForeignKey(e => e.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.DeviceId, e.EnteredAt })
-                  .IsDescending(false, true); 
+                  .IsDescending(false, true);
         });
     }
 }

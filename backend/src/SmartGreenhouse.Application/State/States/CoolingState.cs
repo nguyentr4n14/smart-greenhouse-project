@@ -1,47 +1,42 @@
 ﻿using SmartGreenhouse.Application.Control;
-using SmartGreenhouse.Application.State; // <-- Make sure this is present
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
-namespace SmartGreenhouse.Application.State.States
+namespace SmartGreenhouse.Application.State.States;
+
+public class CoolingState : IGreenhouseState
 {
-    public class CoolingState : IGreenhouseState
+    public string StateName => "Cooling";
+
+    public Task<StateTransitionResult> TickAsync(GreenhouseStateContext context, CancellationToken ct = default)
     {
-        public string Name => "Cooling";
-
-        private const decimal TEMP_COOL_OFF_THRESHOLD = 25.0m;
-        private const decimal TEMP_ALARM_THRESHOLD = 40.0m;
-
-        public Task<TransitionResult> TickAsync(GreenhouseStateContext context)
+        var result = new StateTransitionResult
         {
-            var temp = context.LatestReadings.Temperature;
-
-            if (temp > TEMP_ALARM_THRESHOLD)
+            NextStateName = "Cooling",
+            Commands = new List<ActuatorCommand>
             {
-                return Task.FromResult(new TransitionResult
-                {
-                    NextStateName = "Alarm",
-                    Note = $"Temperature {temp}°C exceeded alarm threshold.",
-                    Commands = new List<ActuatorCommand> { new("Fan", "Off") }
-                });
-            }
+                new ActuatorCommand { ActuatorName = "Fan", Action = "On" }
+            },
+            Note = "Cooling in progress"
+        };
 
-            if (temp <= TEMP_COOL_OFF_THRESHOLD)
+        // Check if temperature has normalized (≤ 24°C for hysteresis)
+        if (context.LatestReadings.TryGetValue("Temperature", out var temp) && temp <= 24.0)
+        {
+            result.NextStateName = "Idle";
+            result.Note = "Temperature normalized, returning to idle";
+            result.Commands.Clear();
+            result.Commands.Add(new ActuatorCommand
             {
-                return Task.FromResult(new TransitionResult
-                {
-                    NextStateName = "Idle",
-                    Note = $"Temperature {temp}°C is below target. Returning to Idle.",
-                    Commands = new List<ActuatorCommand> { new("Fan", "Off") }
-                });
-            }
-
-            return Task.FromResult(new TransitionResult
-            {
-                NextStateName = Name,
-                Note = $"Actively cooling. Current temp: {temp}°C.",
-                Commands = new List<ActuatorCommand> { new("Fan", "On") }
+                ActuatorName = "Fan",
+                Action = "Off"
             });
         }
+        // Check for critical temperature
+        else if (context.LatestReadings.TryGetValue("Temperature", out var criticalTemp) && criticalTemp > 35.0)
+        {
+            result.NextStateName = "Alarm";
+            result.Note = "Critical temperature during cooling!";
+        }
+
+        return Task.FromResult(result);
     }
 }

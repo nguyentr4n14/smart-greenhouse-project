@@ -1,57 +1,33 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using SmartGreenhouse.Application.Control;
-using SmartGreenhouse.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace SmartGreenhouse.Application.State
+namespace SmartGreenhouse.Application.State;
+
+public class GreenhouseStateEngine
 {
-    public class GreenhouseStateEngine
+    private readonly IServiceProvider _serviceProvider;
+
+    public GreenhouseStateEngine(IServiceProvider serviceProvider)
     {
-        private readonly AppDbContext _dbContext;
-        private readonly ControlService _controlService; // Assuming you have this
-        private readonly IServiceProvider _serviceProvider;
+        _serviceProvider = serviceProvider;
+    }
 
-        public GreenhouseStateEngine(
-            AppDbContext dbContext,
-            ControlService controlService,
-            IServiceProvider serviceProvider)
+    public async Task<StateTransitionResult> TickAsync(
+        GreenhouseStateContext context,
+        CancellationToken ct = default)
+    {
+        var state = ResolveState(context.CurrentStateName);
+        return await state.TickAsync(context, ct);
+    }
+
+    private IGreenhouseState ResolveState(string stateName)
+    {
+        return stateName switch
         {
-            _dbContext = dbContext;
-            _controlService = controlService;
-            _serviceProvider = serviceProvider;
-        }
-
-        public async Task<(string CurrentStateName, TransitionResult Result)> TickAsync(int deviceId, GreenhouseStateContext context)
-        {
-            var lastSnapshot = await _dbContext.DeviceStates
-                .Where(s => s.DeviceId == deviceId)
-                .OrderByDescending(s => s.EnteredAt)
-                .FirstOrDefaultAsync();
-
-            string currentStateName = lastSnapshot?.StateName ?? "Idle";
-
-            var currentState = GetState(currentStateName);
-
-            var result = await currentState.TickAsync(context);
-
-            return (currentStateName, result);
-        }
-
-        private IGreenhouseState GetState(string stateName)
-        {
-            // Use DI to resolve the state classes
-            return stateName switch
-            {
-                "Cooling" => _serviceProvider.GetRequiredService<State.States.CoolingState>(),
-                "Irrigating" => _serviceProvider.GetRequiredService<State.States.IrrigatingState>(),
-                "Alarm" => _serviceProvider.GetRequiredService<State.States.AlarmState>(),
-                _ => _serviceProvider.GetRequiredService<State.States.IdleState>()
-            };
-        }
+            "Idle" => _serviceProvider.GetRequiredService<SmartGreenhouse.Application.State.States.IdleState>(),
+            "Cooling" => _serviceProvider.GetRequiredService<SmartGreenhouse.Application.State.States.CoolingState>(),
+            "Irrigating" => _serviceProvider.GetRequiredService<SmartGreenhouse.Application.State.States.IrrigatingState>(),
+            "Alarm" => _serviceProvider.GetRequiredService<SmartGreenhouse.Application.State.States.AlarmState>(),
+            _ => _serviceProvider.GetRequiredService<SmartGreenhouse.Application.State.States.IdleState>()
+        };
     }
 }

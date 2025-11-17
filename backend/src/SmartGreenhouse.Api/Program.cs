@@ -52,29 +52,39 @@ builder.Services.AddScoped<ControlService>();
 builder.Services.AddScoped<CaptureReadingService>();
 builder.Services.AddScoped<ReadingService>();
 
+// ========== NEW FOR ASSIGNMENT 4 ==========
+
 // HTTP clients for adapters
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<HttpActuatorAdapter>(client =>
 {
-    // Default external IoT hub or device controller URL (example)
+    // Default external IoT hub or device controller URL
     client.BaseAddress = new Uri("http://localhost:5055/");
 });
 builder.Services.AddHttpClient("WebhookClient");
 
-// Adapters
-builder.Services.AddSingleton<INotificationAdapter, ConsoleNotificationAdapter>();
-builder.Services.AddSingleton<IActuatorAdapter, SimulatedActuatorAdapter>();
+// Actuator Adapters
+builder.Services.AddSingleton<SimulatedActuatorAdapter>();
+builder.Services.AddSingleton<HttpActuatorAdapter>();
+
+// Notification Adapters
+builder.Services.AddSingleton<ConsoleNotificationAdapter>();
+builder.Services.AddSingleton<WebhookNotificationAdapter>();
+
+// Adapter Registry
 builder.Services.AddSingleton<AdapterRegistry>();
 
-// State engine & service
-builder.Services.AddScoped<GreenhouseStateEngine>();
-builder.Services.AddScoped<StateService>();
-
-// Optionally register concrete states in DI if you want to resolve by name:
-builder.Services.AddScoped<SmartGreenhouse.Application.State.IdleState>();
+// State Pattern - Register concrete state classes (with full namespace)
+builder.Services.AddScoped<IdleState>();
 builder.Services.AddScoped<CoolingState>();
 builder.Services.AddScoped<IrrigatingState>();
 builder.Services.AddScoped<AlarmState>();
+
+// State Engine & Service
+builder.Services.AddScoped<GreenhouseStateEngine>();
+builder.Services.AddScoped<StateService>();
+
+// ========== END ASSIGNMENT 4 ==========
 
 // CORS
 builder.Services.AddCors(options =>
