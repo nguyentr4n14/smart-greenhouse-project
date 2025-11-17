@@ -1,20 +1,19 @@
 ﻿using SmartGreenhouse.Application.Control;
 
-namespace SmartGreenhouse.Application.State
-{
-   
-    public record TransitionResult
-    {
-        // Added 'required' to fix nullable warnings
-        public required string NextStateName { get; init; }
-        public IReadOnlyList<ActuatorCommand> Commands { get; init; } = Array.Empty<ActuatorCommand>();
-        public string? Note { get; init; }
-    }
+namespace SmartGreenhouse.Application.State;
 
-    // The State Pattern interface
-    public interface IGreenhouseState
-    {
-        string Name { get; }
-        Task<TransitionResult> TickAsync(GreenhouseStateContext context);
-    }
+public interface IGreenhouseState
+{
+    string StateName { get; }
+    Task<StateTransitionResult> TickAsync(GreenhouseStateContext context, CancellationToken ct = default);
+}
+
+public class StateTransitionResult
+{
+    public string NextStateName { get; set; } = string.Empty;
+    public List<ActuatorCommand> Commands { get; set; } = new();
+    public string? Note { get; set; }
+
+    // Add a helper property to convert to IReadOnlyList
+    public IReadOnlyList<ActuatorCommand> CommandsReadOnly => Commands.AsReadOnly();
 }

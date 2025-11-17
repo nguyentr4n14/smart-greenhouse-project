@@ -12,7 +12,7 @@ namespace SmartGreenhouse.Domain.Entities
 
         [Required]
         [MaxLength(100)]
-        public string StateName { get; set; }
+        public required string StateName { get; set; }
 
         public DateTime EnteredAt { get; set; }
 

@@ -1,45 +1,42 @@
-﻿
-using SmartGreenhouse.Application.Control;
-using SmartGreenhouse.Application.State;
+﻿using SmartGreenhouse.Application.Control;
 
-namespace SmartGreenhouse.Application.State.States
+namespace SmartGreenhouse.Application.State.States;
+
+public class IrrigatingState : IGreenhouseState
 {
-    public class IrrigatingState : IGreenhouseState
+    public string StateName => "Irrigating";
+
+    public Task<StateTransitionResult> TickAsync(GreenhouseStateContext context, CancellationToken ct = default)
     {
-        public string Name => "Irrigating";
-
-        private const decimal MOISTURE_IRRIGATE_OFF_THRESHOLD = 50.0m;
-        private const decimal TEMP_ALARM_THRESHOLD = 40.0m;
-
-        public Task<TransitionResult> TickAsync(GreenhouseStateContext context)
+        var result = new StateTransitionResult
         {
-            if (context.LatestReadings.Temperature > TEMP_ALARM_THRESHOLD)
+            NextStateName = "Irrigating",
+            Commands = new List<ActuatorCommand>
             {
-                return Task.FromResult(new TransitionResult
-                {
-                    NextStateName = "Alarm",
-                    Note = "Alarm triggered during irrigation. Stopping all actions.",
-                    Commands = new List<ActuatorCommand> { new("Pump", "Off") }
-                });
-            }
+                new ActuatorCommand { ActuatorName = "Pump", Action = "On" }
+            },
+            Note = "Irrigation in progress"
+        };
 
-            var moisture = context.LatestReadings.SoilMoisture;
-            if (moisture >= MOISTURE_IRRIGATE_OFF_THRESHOLD)
+        // Check if soil moisture has recovered (≥ 35% for hysteresis)
+        if (context.LatestReadings.TryGetValue("SoilMoisture", out var moisture) && moisture >= 35.0)
+        {
+            result.NextStateName = "Idle";
+            result.Note = "Soil moisture recovered, returning to idle";
+            result.Commands.Clear();
+            result.Commands.Add(new ActuatorCommand
             {
-                return Task.FromResult(new TransitionResult
-                {
-                    NextStateName = "Idle",
-                    Note = $"Moisture {moisture}% is above target. Returning to Idle.",
-                    Commands = new List<ActuatorCommand> { new("Pump", "Off") }
-                });
-            }
-
-            return Task.FromResult(new TransitionResult
-            {
-                NextStateName = Name,
-                Note = $"Actively irrigating. Current moisture: {moisture}%.",
-                Commands = new List<ActuatorCommand> { new("Pump", "On") }
+                ActuatorName = "Pump",
+                Action = "Off"
             });
         }
+        // Check for critical low moisture
+        else if (context.LatestReadings.TryGetValue("SoilMoisture", out var criticalMoisture) && criticalMoisture < 10.0)
+        {
+            result.NextStateName = "Alarm";
+            result.Note = "Critical low soil moisture!";
+        }
+
+        return Task.FromResult(result);
     }
 }
