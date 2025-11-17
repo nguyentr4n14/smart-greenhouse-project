@@ -36,18 +36,16 @@ public class CaptureReadingService
             throw new InvalidOperationException($"Device with ID {deviceId} not found");
         }
 
-        // Convert DeviceTypeEnum to string for the factory
         var sensorReader = _deviceFactory.CreateDevice(device.DeviceType.ToString());
-
-        // Convert SensorTypeEnum to SensorType for the reader
         var sharedSensorType = ConvertToSharedSensorType(sensorType);
         var value = await sensorReader.ReadSensorAsync(sharedSensorType);
 
         var reading = new SensorReading
         {
             DeviceId = deviceId,
-            SensorType = sensorType, // Keep as SensorTypeEnum
+            SensorType = sensorType,
             Value = value,
+            Unit = GetUnitForSensorType(sensorType), // ✅ Add unit
             Timestamp = DateTime.UtcNow
         };
 
@@ -55,12 +53,12 @@ public class CaptureReadingService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation(
-            "Captured reading: Device={DeviceId}, Sensor={SensorType}, Value={Value}",
+            "Captured reading: Device={DeviceId}, Sensor={SensorType}, Value={Value} {Unit}",
             deviceId,
             sensorType,
-            value);
+            value,
+            reading.Unit);
 
-        // Publish event to observers - convert enum to string
         await _publisher.PublishAsync(new ReadingEvent(
             reading.DeviceId,
             reading.SensorType.ToString(),
@@ -80,6 +78,19 @@ public class CaptureReadingService
             SensorTypeEnum.Light => SensorType.Light,
             SensorTypeEnum.SoilMoisture => SensorType.SoilMoisture,
             _ => SensorType.Temperature
+        };
+    }
+
+    // ✅ Add helper method to get unit
+    private string GetUnitForSensorType(SensorTypeEnum sensorType)
+    {
+        return sensorType switch
+        {
+            SensorTypeEnum.Temperature => "°C",
+            SensorTypeEnum.Humidity => "%",
+            SensorTypeEnum.Light => "lux",
+            SensorTypeEnum.SoilMoisture => "%",
+            _ => ""
         };
     }
 }
