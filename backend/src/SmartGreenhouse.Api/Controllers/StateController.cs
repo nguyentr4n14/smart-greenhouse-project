@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SmartGreenhouse.Api.Contracts;
+using SmartGreenhouse.Application.Adapters;
 using SmartGreenhouse.Application.Services;
 
 namespace SmartGreenhouse.Api.Controllers;
@@ -9,10 +10,12 @@ namespace SmartGreenhouse.Api.Controllers;
 public class StateController : ControllerBase
 {
     private readonly StateService _stateService;
+    private readonly AdapterRegistry _adapterRegistry;
 
-    public StateController(StateService stateService)
+    public StateController(StateService stateService, AdapterRegistry adapterRegistry)
     {
         _stateService = stateService;
+        _adapterRegistry = adapterRegistry;
     }
 
     [HttpPost("tick")]
@@ -47,5 +50,36 @@ public class StateController : ControllerBase
     {
         var history = await _stateService.GetStateHistoryAsync(deviceId, limit);
         return Ok(history);
+    }
+
+    [HttpPost("adapters")]
+    public IActionResult SetAdapterMode([FromBody] AdapterSettingsRequest request)
+    {
+        _adapterRegistry.ActuatorMode = request.ActuatorMode;
+        _adapterRegistry.NotificationMode = request.NotificationMode;
+
+        if (!string.IsNullOrEmpty(request.WebhookUrl))
+        {
+            _adapterRegistry.WebhookUrl = request.WebhookUrl;
+        }
+
+        return Ok(new
+        {
+            actuatorMode = _adapterRegistry.ActuatorMode,
+            notificationMode = _adapterRegistry.NotificationMode,
+            webhookUrl = _adapterRegistry.WebhookUrl,
+            message = "Adapter settings updated successfully"
+        });
+    }
+
+    [HttpGet("adapters")]
+    public IActionResult GetAdapterMode()
+    {
+        return Ok(new
+        {
+            actuatorMode = _adapterRegistry.ActuatorMode,
+            notificationMode = _adapterRegistry.NotificationMode,
+            webhookUrl = _adapterRegistry.WebhookUrl
+        });
     }
 }
