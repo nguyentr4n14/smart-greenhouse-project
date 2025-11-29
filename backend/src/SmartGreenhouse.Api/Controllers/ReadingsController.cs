@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using SmartGreenhouse.Api.Contracts;
 using SmartGreenhouse.Application.Services;
 using SmartGreenhouse.Domain.Enums;
 
@@ -26,7 +27,15 @@ public class ReadingsController : ControllerBase
         [FromQuery] int take = 100)
     {
         var readings = await _readingService.GetReadingsAsync(deviceId, sensorType, take);
-        return Ok(readings);
+        var dtos = readings.Select(r => new ReadingDto(
+            r.Id,
+            r.DeviceId,
+            r.SensorType,
+            r.Value,
+            r.Unit,
+            r.Timestamp
+        )).ToList();
+        return Ok(dtos);
     }
 
     [HttpPost("capture")]
